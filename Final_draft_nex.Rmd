@@ -80,8 +80,7 @@ urbindex.all <- read_dta('/Users/rvolosh/Documents/Linda/urbindexwideallyears.dt
 ```
 
 ``` {r get IDs, include=F}
-# i figured out that newid is just uncchdid with a 400 before it, so instead of making a "converter" out a dataset, I will just subtract the 400 part
-# id.convert <- analyzewealthpc %>% filter(site==4) %>% select(newid, uncchdid) %>% filter(!is.na(uncchdid))
+
 cebuwealth2 <- cebuwealth %>% mutate(newid=uncchdid+40000000)
 
 pc <- read_dta('/Users/rvolosh/Documents/Linda/cebupc.dta') %>% 
@@ -134,15 +133,10 @@ df2 <- df1 %>% group_by(site,year) %>% mutate(
 
 ### Longitudinal BMI & pc changes
 
-- For where there was only one value per ID in the newagecat2 bin we used that value and that age. For where there were multiple values, we used the average of BMI at the average age. <p><mark>This approach assumes linear change in BMI during that time period</mark></p>
-
 - Changes in pc were calculated by subtracting the pc from the previous available point per individual ID and dividing it by the time over which the change in pc took place. If some times were missing, pc was filled in using points around it (e.g. if the person has pc information ate ages 2, 4, and 8, but not 6, with 2 being the baseline, 2 would be NA, 4 would be average yearly change in pc between ages 2 and 4, 6 and 8 both would be the average yearly change in pc between 4 and 8)
 
 ``` {r creating bmi change bins, include=T}
 
-# df.c is the df that includes changes in bmi by years between the bins
-# columns - newid, newagecat2, avg.bmi, and avg.age at bmi
-# filling in the survey year for those who are missing it
 df3 <- df2 %>% filter(!is.na(age)) %>% 
   mutate(survey = case_when(!is.na(survey) ~ survey,
                             agecat==2 ~ 1986,
@@ -189,7 +183,6 @@ df3 <- df2 %>% filter(!is.na(age)) %>%
   - it is 0 if patient was lean and stayed lean or was owob and became lean
   - 1 if was lean and became owob
   - NA if was owob and stayed owob
-  
   
 ``` {r lagged pred vars and modified edu, include=FALSE}
 
@@ -247,7 +240,7 @@ df4 <- df3 %>% filter(site==4) %>%
  
   - I am keeping maxgrade (variable denoting maximum grade complete by IC), because there are some discrepancies in the data (like grade 6 at one survey and grade 5 at the next). If I am ever to use this data with the children and see how they are doing in school, THIS NEEDS TO BE CLEANED. But not ow, because I am not using this data, and it does not affect my analysis or my results.
   
-  - If in 2005, 2009, or 2018 gradcom is missing (gradecom I got from the gradecom05, etc.), I am applying the number from maxgrade
+  - If in 2005, 2009, or 2018 gradecom is missing (gradecom I got from the gradecom05, etc.), I am applying the number from maxgrade
   - I am creating a categorical variable, called educat
     1. Less than high school - referent group
     2. HS grad
@@ -401,8 +394,6 @@ pregs2018 <- read_dta('/Users/rvolosh/Documents/Papers/Cebu incident obesity/pre
   group_by(uncchdid) %>% arrange(survey) %>%
   mutate(
     # num pregs per year
-    # had issues, so testing w surv.diff = survey - lag(survey)
-    # turns out lag not working; switched to Hmisc:Lag(shift=1)
     #Infs from duplicates w latest pregnancy, so I will fill them in
     num.preg.surv.yr = num.preg.surv/(survey-Lag(survey, shift=1))
   ) %>% ungroup() %>% distinct(uncchdid, survey, num.preg.surv, .keep_all = TRUE)
@@ -504,7 +495,6 @@ obescnts <- df6.5 %>% filter(!is.na(sex) & survey %in% c(2005, 2009, 2018)) %>%
   ungroup() %>%
   mutate(
     owob = factor(owob, levels=c('0', '1', 'NA')),
-    # sex = ifelse(sex==0,'Female ICs', 'Male ICs'),
     bmi3cat = factor(bmi3cat, levels=c('0', '1', '2')),
     bmi4cat = factor(bmi4cat, levels=c('0', '1', '2', '3')),
     lag.pc.q = factor(lag.pc.q, levels=c('0', '1', '2')),
@@ -588,19 +578,16 @@ jobs2009 <- rbind(jobs2009f, jobs2009m)
 
 ```
 
-Some people who were unemployed (those who had been employed before and those who had never worked before) still had a source of income. I want to see if treating them as employed would change the results, because I don't kjnow what to do with them exactly.
-
 Variable of interest names:
 - mainpos = position primarily working in in main job
-  - weirdly deinfed. For example, sitting most of the time and moving around most of the time - that makes absolutely NO sense.
   - I am putting sitting and squatting in together into one variable
-  - I am puting standing and standing + bending over together as well
+  - I am putting standing and standing + bending over together as well
   - Three main categories - sitting most of the time, standing most of the time, and moving most of the time
 - mainexe, secexer = does main job require physical exertion? If yes, what kind
   - the vast majority were in the 0 category
   - dividing into:
     - no exertion (self-evident) - 0, -9 (N/A)
-    - light exertion (e.g. sweeping, carrying a child) - 2, 3, 6, 9, 11, 12 (what is a kolador?), 13, 15, 16, 17, 18, 19, 20, 21, 22, 25, 29
+    - light exertion (e.g. sweeping, carrying a child) - 2, 3, 6, 9, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 25, 29
     - heavy exertion (e.g. bending iron grills, lifting/carrying heavy objects) - 1, 4, 5, 7, 8, 10, 14, 23, 24, 26, 27, 28
     
 Since we did not have the exertion variable in the 2009 job data, I will use pos, but before using it, I will test it in 2005, to see:
@@ -805,21 +792,10 @@ df7 <- left_join(df6, employ2005.2, by='uncchdid') %>% mutate_all(as.character) 
     z.exert = (exertion.adj - mean(exertion.adj, na.rm = TRUE))/sd(exertion.adj, na.rm = TRUE)
   ) %>% ungroup()
 
-# for some reason, educat is not appearing as a categorical variables, so I am going to factor it, to make sure it is one henceforth
+# factor educat (education category)
 df7$educat <- factor(df7$educat, levels = c(1, 2, 3, 4))
 
 ```
-
-There are some people for whom it says they are not working, but there is a non-zero daily income, so I am assuming that is based on their salary pre-quitting work for the ones with -6 (not working, but has worked before), and for those who have 0 for working, I am not sure. I will do analysis with the ones with 0 or -6 for work putting them in with the earners and also putting them in with the jobless. Then, I will see if it changes my results at all.
-
-Seems like there are no deadbeats...
-
-Place of work: 
-- 1: at home
-- 2: away from home
-- 3: ambulant vendor
-
-do it as it makes the most sense to you - say you are not exerting yourself if you are not working and then do the other way as a sensitivity analysis
 
 ### Tables 1, 2a, and 2b
 
@@ -865,13 +841,6 @@ table1(~ age + lag.pc + lag.urbindex + educat +  employed + num.preg.surv + bmic
 
 ```
 
-##### Write out a file for use in epi
-```{r, eval=TRUE, include=TRUE}
-
-save(df7, file = '/Users/rvolosh/Documents/Papers/Cebu Epigenetics/codes/df7.RData')
-
-```
-
 #### Table 2
 
 ```{r table2, eval=TRUE, include=TRUE}
@@ -898,7 +867,6 @@ table1(~ lag.pc + lag.urbindex + educat + bmic | survey + factor(bmi3cat, levels
 Testing if pregnancy interactions are necessary
 
 ```{r pregs lrtest, include=TRUE}
-# quantile regression doesn't work for lrtest, so I will just do regular models, and that will be like 0.5 tau, then 0.25, and 0.75
 
 lr.prep <- function(year, tau, pos=FALSE) {
   data1 <- df7 %>% filter(sex==0) %>% filter(survey==year)
@@ -966,11 +934,9 @@ lr.prep(2018, 0.75) %>% cbind(Model = c('Without interaction','With interaction'
     across(where(is.character), ~ ifelse(str_squish(.) == "NA", "", .))
     ) %>% kbl(caption = "Likelihood Ratio Test Results<br>2018<br>Quantile 0.75", align=c('l','r','r','r','r','r')) %>% kable_classic(full_width = F, html_font = "Cambria")
 
-
-
 ```
 
-Based on the results above, I should interact asset index with the number of pregnancies completed between the surveys in all surveys. Thought it is not the focus of my paper, it represents a real biological variable - maternal depletion vs. weight gain associated with pregnancy in settings of abundance.
+Based on the results above, I should interact asset index with the number of pregnancies completed between the surveys. Though it is not the focus of my paper, it represents a real biological variable - maternal depletion vs. weight gain associated with pregnancy in settings of abundance.
 
 #### Testing likelihood of being in the sample
 
@@ -999,9 +965,6 @@ df8 <- df7 %>% mutate(
 )
 
 # women
-# glm(pres05 ~ lag.pc + lag.urbindex,
-#     data = df8[df8$survey==1986 & df8$sex==0,],
-#     family=binomial(link='logit')) %>% summary()
 
 # print("testing how likely someone present in 2005 was to also be present in 2009 - WOMEN")
 tw9 <- glm(pres09 ~ lag.pc + lag.urbindex + educat + employed,
@@ -1467,8 +1430,6 @@ physical exertion, and parity. HAI and parity were interacted."
   guides(col=guide_legend(title="Quantile"),
          shape=guide_legend(title="Quantile"))
 
-# summary(rqfit.f, se='nid') # nid assumes local linearity, which I believe we have (no hard corners)
-
 ```
 
 ```{r plot rq predicted bmi women 2009, eval=TRUE, include=TRUE}
@@ -1649,7 +1610,6 @@ physical exertion, and parity. HAI and parity were interacted."
   theme(plot.caption.position = "panel", plot.caption = element_text(hjust = 0)) +
   guides(col=guide_legend(title="Quantile"),
          shape=guide_legend(title="Quantile"))
-# summary(rqfit.f, se='nid') # nid assumes local linearity, which I believe we have (no hard corners)
 
 ```
 
@@ -1841,7 +1801,6 @@ sedentary job. Urbanicity is a sum of scores, which represent community characte
   theme(plot.caption.position = "panel", plot.caption = element_text(hjust = 0)) +
   guides(col=guide_legend(title="Quantile"),
          shape=guide_legend(title="Quantile"))
-# summary(rqfit.f, se='nid') # nid assumes local linearity, which I believe we have (no hard corners)
 
 ```
 
@@ -1928,8 +1887,6 @@ settings.",
   theme(plot.caption.position = "panel", plot.caption = element_text(hjust = 0)) +
   guides(col=guide_legend(title="Quantile"),
          shape=guide_legend(title="Quantile"))
-
-# summary(rqfit.f, se='nid') # nid assumes local linearity, which I believe we have (no hard corners)
 
 ```
 
@@ -2258,11 +2215,6 @@ pf18 <- plot_summs(rqf18.75, rqf18.50, rqf18.25, robust = TRUE,
   scale_color_discrete(name = "Quantile") +
   xlim(-5,5)
 
-
-  # xlim(-0.17,0.17) + theme(legend.position = "none") +
-  # font("title", size = 12, face = "bold") +
-  # font("xlab", size = 10) +
-  # font("xy.text", size = 10, color = "gray40", face = "bold.italic")
 
 ```
 
@@ -3031,12 +2983,6 @@ pf18 <- plot_summs(rqf18.75, rqf18.50, rqf18.25, robust = TRUE,
   scale_shape_discrete(name = "Quantile") +
   scale_color_discrete(name = "Quantile") +
   xlim(-5,5)
-
-
-  # xlim(-0.17,0.17) + theme(legend.position = "none") +
-  # font("title", size = 12, face = "bold") +
-  # font("xlab", size = 10) +
-  # font("xy.text", size = 10, color = "gray40", face = "bold.italic")
 
 ```
 
